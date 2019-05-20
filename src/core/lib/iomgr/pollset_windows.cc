@@ -184,6 +184,7 @@ done:
 
 static grpc_error* pollset_kick(grpc_pollset* p,
                                 grpc_pollset_worker* specific_worker) {
+  bool kick_done = false;
   if (specific_worker != NULL) {
     if (specific_worker == GRPC_POLLSET_KICK_BROADCAST) {
       for (specific_worker =
@@ -192,11 +193,13 @@ static grpc_error* pollset_kick(grpc_pollset* p,
            specific_worker =
                specific_worker->links[GRPC_POLLSET_WORKER_LINK_POLLSET].next) {
         specific_worker->kicked = 1;
+        kick_done = true;
         gpr_cv_signal(&specific_worker->cv);
       }
       p->kicked_without_pollers = 1;
       if (p->is_iocp_worker) {
         grpc_iocp_kick();
+        kick_done = true;
       }
     } else {
       if (p->is_iocp_worker && g_active_poller == specific_worker) {
@@ -211,10 +214,21 @@ static grpc_error* pollset_kick(grpc_pollset* p,
         pop_front_worker(&p->root_worker, GRPC_POLLSET_WORKER_LINK_POLLSET);
     if (specific_worker != NULL) {
       grpc_pollset_kick(p, specific_worker);
+      kick_done = true;
     } else if (p->is_iocp_worker) {
       grpc_iocp_kick();
+      kick_done = true;
     } else {
       p->kicked_without_pollers = 1;
+    }
+  }
+  if (!kick_done && g_active_poller == NULL) {
+    grpc_pollset_worker* next_global_worker =
+        pop_front_worker(&g_global_root_worker,
+                         GRPC_POLLSET_WORKER_LINK_GLOBAL);
+    if (next_global_worker != NULL) {
+      next_global_worker->kicked = 1;
+      gpr_cv_signal(&next_global_worker->cv);
     }
   }
   return GRPC_ERROR_NONE;
