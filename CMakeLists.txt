@@ -310,8 +310,6 @@ if(MSVC)
   set(_gRPC_C_CXX_FLAGS "${_gRPC_C_CXX_FLAGS} /wd4503")
   # Tell MSVC to build grpc using utf-8
   set(_gRPC_C_CXX_FLAGS "${_gRPC_C_CXX_FLAGS} /utf-8")
-  # Inconsistent object sizes can cause stack corruption and should be treated as an error
-  set(_gRPC_C_CXX_FLAGS "${_gRPC_C_CXX_FLAGS} /we4789")
   # To decrease the size of PDB files
   set(CMAKE_EXE_LINKER_FLAGS "/opt:ref /opt:icf /pdbcompress")
 endif()
